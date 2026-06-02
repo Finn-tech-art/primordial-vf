@@ -1,126 +1,113 @@
+```md
 # Primordial VF Evolution
 
-## 1. Where We Are
+## 1. Current State
 
-We are at the scaffold and architecture-definition stage.
+Primordial VF has moved from scaffold to first working output.
 
-The project structure exists, but the functional pipeline has not been implemented yet. What we have done so far is define the product direction and agree on the build workflow.
+The system now has a functional style-first path:
 
-## 2. What Has Been Decided
+```text
+style ingestion -> Qdrant storage -> graph retrieval -> Groq rewrite
+```
 
-The following decisions are now fixed:
+This is the first real proof that the architecture can run end to end.
 
-- The project is called **Primordial VF / Voice Forge**
-- The MVP is now **style-first**
-- The system will use **Qdrant Cloud**
-- The system will run through **FastAPI**
-- Orchestration will be handled by **LangGraph**
-- Generation will use **Groq**
-- Style will be represented through **linguistic telemetry**
-- The user workflow will follow a **manual file-paste engineering process**
-  - I write the file contents here
-  - you paste them into VS Code
-  - I do not directly edit files unless you explicitly ask me to
+## 2. Product Direction
 
-## 3. Why the Direction Changed
+The project started from a dual-lane RAG idea:
 
-The original shape of the system leaned more toward factual retrieval and dual-lane RAG.
+- factual retrieval
+- stylistic retrieval
 
-We refined that direction because the real product value appears to be:
+The direction has shifted to a style-first MVP.
 
-- upload writing you admire
-- extract the style
-- reuse that style on new text later
+The current product focus is:
 
-That makes the style ingester the center of the system, not an afterthought.
+- upload a writing sample
+- extract its style
+- store it as a reusable style anchor
+- rewrite new text in that style
 
-## 4. What Exists Right Now
+Knowledge ingestion and factual grounding remain possible future layers, but they are no longer the first product milestone.
 
-The following items are in place:
+## 3. What Is Working
 
-- the project directory scaffold
-- empty placeholder files for implementation
-- short module-purpose docstrings in package `__init__.py` files
-- `.env`
-- `.env.example`
+The following pieces are now working:
 
-The scaffold includes placeholders for:
+- environment loading through `.env`
+- Qdrant Cloud collection initialization
+- Groq client setup
+- Pydantic telemetry model
+- style ingestion through `StyleIngester`
+- Groq-powered telemetry extraction
+- local embedding with SentenceTransformers
+- Qdrant upsert of style chunks
+- LangGraph graph construction
+- graph-based smoke test
+- Qdrant style retrieval through `query_points`
+- Groq generation through the synthesis node
 
-- API modules
-- graph nodes
-- telemetry and payload models
-- Qdrant storage abstraction
-- Groq client
-- ingestion logic
-- tests
-- bootstrap scripts
+## 4. First Smoke Test Result
 
-## 5. What Has Not Been Built Yet
+The demo style anchor was ingested successfully:
 
-The following still needs implementation:
+```text
+Style anchor ID: demo_literary_sparse
+Chunks stored: 1
+Collection: vf_corpus
+```
 
-- `pyproject.toml`
-- runtime code in `config.py`
-- Qdrant client setup
-- embedding wrapper
-- telemetry schema
-- style ingestion
-- LangGraph state and nodes
-- Groq generation client
-- FastAPI routes and app wiring
-- smoke test and integration tests
+The graph smoke test also succeeded.
 
-## 6. Current Architectural Direction
+It retrieved one style chunk and produced a rewritten output.
 
-We are now building a **style transformation engine**.
+## 5. What We Learned
 
-That means the system should:
+The infrastructure works.
 
-- accept source writing
-- extract style structure from it
-- store the style anchor in Qdrant
-- retrieve that anchor later
-- rewrite new user text in that style
+The current quality issue is not connectivity or orchestration. It is style fidelity.
 
-Knowledge retrieval may be added later, but it is no longer the primary MVP center.
+The first generated output preserved meaning, but it leaned too formal and polished. It did not yet fully reproduce the sparse literary rhythm of the demo anchor.
 
-## 7. Immediate Next Step
+This means the next work is prompt tuning and style-pressure design, not plumbing.
 
-The next sensible build step is to define the style ingester in detail.
+## 6. Current Known Issues
 
-After that, the order should be:
+- `compile_context.py` needs stronger style instructions
+- the generation prompt should discourage corporate/product language
+- telemetry extraction is useful, but some hard metrics may need deterministic backup later
+- `seed_demo.py` currently stores only one demo chunk because the sample is short
+- FastAPI routes are not built yet
+- Supabase is not wired yet
+- knowledge ingestion is deferred
 
-1. `models/telemetry.py`
-2. `models/knowledge.py` or a style payload model
-3. `storage/qdrant_client.py`
-4. `storage/embedder.py`
-5. `ingest/style_ingester.py`
-6. `graph/state.py`
-7. `graph/nodes/*`
-8. `graph/graph.py`
-9. `api/*`
-10. tests and smoke script
+## 7. Next Engineering Step
 
-## 8. Build Philosophy Going Forward
+The next file to improve is:
 
-We are building this in a controlled sequence.
+```text
+primordial_vf/graph/nodes/compile_context.py
+```
 
-That means:
+Goal:
 
-- define the structure first
-- write the smallest useful implementation next
-- verify behavior with tests and smoke checks
-- only then move to the next layer
+- make the model apply the selected style more visibly
+- preserve meaning
+- avoid adding facts
+- avoid generic marketing prose
+- make output paragraph rhythm resemble the retrieved anchor
 
-The goal is to keep the architecture legible and the implementation easy to reason about as it grows.
+## 8. Future Milestones
 
-## 9. Working Agreement
+Planned next milestones:
 
-Going forward, the shared workflow is:
-
-- I explain what each file does
-- I explain how it fits into the architecture
-- I write the file content here
-- you paste it into the local file in VS Code
-
-That keeps the build transparent and lets you stay fully in control of the codebase.
+1. Tune the generation prompt for stronger style fidelity.
+2. Add a second contrasting style anchor.
+3. Compare two outputs from the same input using different anchors.
+4. Move smoke test behavior into FastAPI routes.
+5. Add tests around telemetry, chunking, retrieval, and graph behavior.
+6. Add Supabase later for auth, files, metadata, and generation history.
+7. Add optional knowledge ingestion for grounded factual generation.
+8. Add a parallel Groq extraction swarm for higher-quality style analysis.
+```

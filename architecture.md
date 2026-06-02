@@ -1,216 +1,190 @@
+```md
 # Primordial VF Architecture
 
 ## 1. What We Are Building
 
-Primordial VF, also called Voice Forge, is a style transformation system for rewriting text in the voice of a selected source corpus.
+Primordial VF, also called Voice Forge, is a style transformation system.
 
-The core promise is simple:
+The core product promise is:
 
-- a user uploads writing they admire
-- the system extracts the style structure from that writing
-- the user later gives it new text to transform
-- the system rewrites that text using the captured style
+- a user uploads writing with a style they admire
+- the system extracts a reusable style profile from that writing
+- the user submits new text
+- the system rewrites the new text using the captured style
 
-The product is therefore not just a retrieval system. It is a voice capture and voice application engine.
+The current MVP is style-first. Factual knowledge grounding may be added later, but the first goal is to prove voice capture and voice application.
 
-## 2. Core Product Idea
+## 2. Current Architecture
 
-Primordial VF treats style as a first-class data object.
+Primordial VF currently has four main layers:
 
-Instead of asking the model to "sound like" something through prompting alone, the system extracts measurable stylistic features from source text and stores them as reusable style anchors.
+- Style ingestion
+- Vector storage
+- LangGraph orchestration
+- Groq generation
 
-A style anchor includes:
+The first working pipeline is:
 
-- raw sample chunks
-- sentence rhythm patterns
-- punctuation habits
-- paragraph shape
-- register
-- rhetorical patterns
-- other structural signals that make a voice recognizable
+```text
+style sample -> Groq telemetry extraction -> embedding -> Qdrant Cloud
+input text -> LangGraph -> style retrieval -> prompt compilation -> Groq rewrite
+```
 
-The system later retrieves those anchors and uses them to steer generation.
+## 3. Workflow Diagram
 
-## 3. Main Runtime Components
+```mermaid
+flowchart TD
+    A[Style Source Text] --> B[Style Ingester]
+    B --> C[Groq Extraction Model]
+    C --> D[Linguistic Telemetry]
+    B --> E[Chunk Text]
+    E --> F[Embedding Model]
+    F --> G[(Qdrant Cloud)]
+    D --> G
 
-### 3.1 FastAPI API Layer
+    H[Input Text To Rewrite] --> I[Smoke Test / API Caller]
+    I --> J[LangGraph]
 
-The API is the external entry point for the system.
+    J --> K[Validate Input Node]
+    K --> L[Embed Query]
+    L --> M[Retrieve Style Node]
+    M --> G
+    G --> N[Style Chunks + Telemetry]
 
-It provides endpoints for:
+    N --> O[Compile Context Node]
+    O --> P[Synthesize Node]
+    P --> Q[Groq Generation Model]
+    Q --> R[Styled Output]
+```
 
-- ingesting style source material
-- ingesting optional factual knowledge later
-- generating transformed output
-
-The API layer is responsible for request validation, response formatting, and startup wiring.
-
-### 3.2 Style Ingestion Layer
+## 4. Style Ingestion Layer
 
 The style ingester is the core product primitive.
 
-It takes uploaded writing and turns it into structured style memory by:
+It accepts a style source and produces:
 
-- chunking the source text
-- extracting linguistic telemetry
-- generating embeddings
-- storing the chunks and metadata in Qdrant
+- normalized text
+- overlapping text chunks
+- Groq-extracted linguistic telemetry
+- embedding vectors
+- Qdrant payloads
 
-This layer defines the quality of the style anchor the rest of the system will rely on.
+Each stored style chunk has:
 
-### 3.3 LangGraph Orchestration Layer
+- `source_type = style_anchor`
+- `style_anchor_id`
+- `chunk_text`
+- `chunk_index`
+- `telemetry`
+- `metadata`
+- `created_at`
 
-LangGraph controls the generation pipeline.
+The telemetry model currently captures:
 
-It manages a typed state object through a sequence of nodes such as:
+- sentence rhythm
+- paragraph structure
+- punctuation density
+- pronoun/person signals
+- rhetorical devices
+- style register
+- dominant mood
+- style notes
 
-- validate input
-- retrieve style anchor
-- compile style context
-- synthesize rewritten output
+## 5. Qdrant Cloud Layer
 
-This gives us a deterministic and inspectable execution path.
+Qdrant Cloud stores the style anchors.
 
-### 3.4 Qdrant Cloud Storage Layer
+The MVP uses a single collection:
 
-Qdrant Cloud stores all embedded chunks in one collection.
+```text
+vf_corpus
+```
 
-For the style-first MVP, the collection primarily holds style anchors and their payload metadata.
-
-The collection may also later hold factual knowledge, but the first product value is style retrieval.
-
-Important payload fields include:
+Payload indexes are used for retrieval:
 
 - `source_type`
 - `style_anchor_id`
-- `chunk_text`
-- `telemetry`
-- `chunk_index`
-- `created_at`
+- `user_id`
 
-### 3.5 Linguistic Telemetry Layer
+The current retrieval path filters by:
 
-Style anchors are not stored only as raw text.
+```text
+source_type = style_anchor
+style_anchor_id = selected anchor
+```
 
-They are also parsed into a structural fingerprint that captures traits such as:
+## 6. LangGraph Layer
 
-- average sentence length
-- sentence length distribution
-- comma density
-- em dash density
-- paragraph brevity
-- rhetorical devices
-- register
-- dominant mood
+LangGraph is the runtime control plane for style application.
 
-This telemetry is used as a blueprint during rewriting.
+The current graph nodes are:
 
-### 3.6 Groq Inference Layer
+- `validate_input`
+- `retrieve_style`
+- `compile_context`
+- `synthesize`
 
-Groq handles the final text generation step.
+The graph state carries:
 
-It receives:
-
-- the user’s new source text
-- the selected style anchor chunks
-- the extracted telemetry blueprint
-- any optional rewrite instructions from the user
-
-Its role is to generate transformed output that preserves the target voice patterns.
-
-## 4. Data Flow
-
-The system follows this path:
-
-1. The user uploads a style source document.
-2. The API validates the request.
-3. The style ingester chunks and embeds the source text.
-4. Linguistic telemetry is extracted from the source.
-5. The style anchor is stored in Qdrant Cloud.
-6. When the user wants a rewrite, the API sends the request into LangGraph.
-7. LangGraph retrieves the selected style anchor.
-8. The context compiler assembles raw style samples and telemetry.
-9. The synthesis node sends the assembled prompt to Groq.
-10. Groq returns rewritten text in the selected style.
-11. The API returns the transformed output to the client.
-
-## 5. State Shape
-
-The LangGraph state should carry the minimum information needed to move through the pipeline:
-
-- `user_query`
 - `style_anchor_id`
 - `input_text`
+- `rewrite_instruction`
+- `query_vector`
 - `style_chunks`
 - `telemetry_blueprint`
+- `compiled_prompt`
 - `generation`
 - `error`
 
-If factual grounding is added later, the state can expand to include knowledge retrieval fields.
+## 7. Groq Layer
 
-## 6. Project Structure
+Groq is used in two places:
 
-The scaffold is organized by responsibility:
+- style extraction
+- final text generation
 
-- `primordial_vf/api`
-  - FastAPI app, routes, and request/response schemas
-- `primordial_vf/graph`
-  - LangGraph state, graph factory, and node implementations
-- `primordial_vf/models`
-  - Pydantic models for telemetry and payloads
-- `primordial_vf/storage`
-  - Qdrant client and embedding abstraction
-- `primordial_vf/llm`
-  - Groq model access
-- `primordial_vf/ingest`
-  - Style and knowledge ingestion logic
-- `scripts`
-  - bootstrap, seeding, and smoke-test scripts
-- `tests`
-  - unit and integration coverage
+Current model defaults:
 
-## 7. Environment and Configuration
+```text
+GROQ_EXTRACTION_MODEL=llama-3.1-8b-instant
+GROQ_GENERATION_MODEL=llama-3.3-70b-versatile
+```
 
-The project is configured through environment variables:
+The extraction model returns structured telemetry that is validated by Pydantic.
 
-- `QDRANT_URL`
-- `QDRANT_API_KEY`
-- `QDRANT_COLLECTION`
-- `GROQ_API_KEY`
+The generation model receives:
 
-These belong in `.env` locally and `.env.example` as the template.
+- user input text
+- retrieved style samples
+- telemetry blueprint
+- rewrite instruction
 
-## 8. MVP Boundaries
+## 8. Current Validation Status
 
-The MVP is intentionally focused on style transformation.
+The first working demo has completed successfully.
 
-In scope:
+The system can now:
 
-- Qdrant Cloud-based storage
-- style ingestion
-- telemetry extraction
-- style retrieval
-- LangGraph orchestration
-- Groq synthesis
-- FastAPI endpoints
-- CLI smoke test
+- ingest a demo style anchor
+- extract telemetry with Groq
+- embed and store the style chunk in Qdrant Cloud
+- retrieve the style anchor through LangGraph
+- generate a rewritten output through Groq
 
-Deferred for later:
+The current quality gap is style strength. The first output preserved meaning, but it sounded more formal and polished than the sparse literary style anchor. The next tuning step is stronger prompt pressure in `compile_context.py`.
 
-- full knowledge grounding
-- authentication
-- multi-tenancy
+## 9. Deferred Architecture
+
+The following are not part of the current working MVP yet:
+
+- FastAPI routes
+- Supabase integration
+- auth
+- user workspaces
+- file upload storage
+- knowledge ingestion
+- factual grounding
 - streaming responses
-- dashboarding
-- Docker-based deployment
-- production observability stack
-
-## 9. Validation Strategy
-
-The architecture is validated by proving three things:
-
-- style anchors are extracted faithfully
-- style anchors are retrieved correctly
-- changing the style anchor changes the output voice
-
-The success condition is not just that the system runs. It is that the system can reliably capture and reproduce a recognizable writing voice.
+- observability
+- parallel Groq extraction swarm
+```
