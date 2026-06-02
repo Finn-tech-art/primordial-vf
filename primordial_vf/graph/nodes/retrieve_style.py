@@ -24,9 +24,9 @@ def retrieve_style_node(state: VFState) -> VFState:
     if not style_anchor_id:
         return {"error": "style_anchor_id is missing."}
 
-    result = client.search(
+    response = client.query_points(
         collection_name=settings.qdrant_collection,
-        query_vector=query_vector,
+        query=query_vector,
         query_filter=Filter(
             must=[
                 FieldCondition(
@@ -46,8 +46,9 @@ def retrieve_style_node(state: VFState) -> VFState:
     style_chunks: list[str] = []
     telemetry_blueprint = None
 
-    for point in result:
+    for point in response.points:
         payload = point.payload or {}
+
         chunk_text = payload.get("chunk_text")
         telemetry = payload.get("telemetry")
 
@@ -56,6 +57,9 @@ def retrieve_style_node(state: VFState) -> VFState:
 
         if telemetry_blueprint is None and isinstance(telemetry, dict):
             telemetry_blueprint = telemetry
+
+    if not style_chunks:
+        return {"error": f"No style chunks found for style_anchor_id={style_anchor_id!r}."}
 
     return {
         "style_chunks": style_chunks,

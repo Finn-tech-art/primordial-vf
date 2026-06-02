@@ -34,4 +34,4 @@ def synthesize_node(state: VFState) -> VFState:
         ]
     )
 
-    return {"generation": str(response.content)}
+    return {"generation": str(response.content).strip()}

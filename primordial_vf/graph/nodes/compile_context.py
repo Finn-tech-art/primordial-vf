@@ -34,11 +34,9 @@ def build_generation_prompt(
 ) -> str:
     """Build the final generation prompt."""
     style_samples = "\n\n---\n\n".join(style_chunks)
-
     instruction = rewrite_instruction.strip() or (
         "Rewrite the input text using the retrieved style anchor."
     )
-
     telemetry_json = json.dumps(telemetry_blueprint, indent=2, ensure_ascii=False)
 
     return f"""
@@ -50,6 +48,7 @@ You must preserve the meaning and intent of the input text.
 You must not copy phrases from the style samples unless they are generic language.
 You must use the style samples only as evidence of rhythm, structure, diction, and punctuation behavior.
 You must not mention the source author or source material.
+You must return only the rewritten text.
 
 == STYLE TELEMETRY ==
 {telemetry_json}
@@ -62,6 +61,4 @@ You must not mention the source author or source material.
 
 == INPUT TEXT ==
 {input_text}
-
-Return only the rewritten text.
 """.strip()

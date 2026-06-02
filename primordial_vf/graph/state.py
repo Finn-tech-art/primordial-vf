@@ -16,7 +16,7 @@ class VFState(TypedDict, total=False):
     query_vector: list[float]
     style_chunks: Annotated[list[str], operator.add]
     telemetry_blueprint: dict[str, Any]
+    compiled_prompt: str
 
     generation: str
     error: str
-    compiled_prompt: str
