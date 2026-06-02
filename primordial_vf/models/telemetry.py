@@ -115,7 +115,7 @@ class LinguisticTelemetry(BaseModel):
         description="Estimated ratio of sentence fragments.",
     )
 
-    register: Register = Field(
+    style_register: Register = Field(
         description="Overall diction and formality level.",
     )
     dominant_mood: DominantMood = Field(

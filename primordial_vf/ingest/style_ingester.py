@@ -23,7 +23,7 @@ You are a linguistic style analyst for a voice transformation system.
 Your task is to analyze the supplied writing sample for style, not meaning.
 
 Return a structured linguistic fingerprint that describes how the text is written:
-sentence rhythm, paragraph shape, punctuation behavior, register, narrative
+sentence rhythm, paragraph shape, punctuation behavior, style register, narrative
 posture, rhetorical devices, and stylistic notes.
 
 Do not summarize the plot, argument, topic, or factual content.
